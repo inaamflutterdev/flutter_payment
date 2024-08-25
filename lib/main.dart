@@ -6,8 +6,16 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  Stripe.publishableKey = dotenv.env["STRIPE_PUBLISH_KEY"]!;
+
+  String? publishableKey = dotenv.env["STRIPE_PUBLISHABLE_KEY"];
+  assert(publishableKey != null,
+      "Stripe publishable key is not defined in the .env file.");
+
+  Stripe.publishableKey = publishableKey!;
+  Stripe.merchantIdentifier = 'merchant.flutter.stripe.test';
+  Stripe.urlScheme = 'flutterstripe';
   await Stripe.instance.applySettings();
+
   runApp(const MyApp());
 }
 

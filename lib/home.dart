@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print, use_build_context_synchronously, duplicate_ignore
+
 import 'package:flutter/material.dart';
 import 'package:flutter_payment/contants.dart';
 import 'package:flutter_payment/payment.dart';
@@ -41,37 +43,45 @@ class _HomeState extends State<Home> {
   Future<void> initPaymentSheet() async {
     try {
       final data = await createPaymentIntent(
-          // convert string to double
-          amount: (int.parse(amountController.text) * 100).toString(),
-          currency: selectedCurrency,
-          name: nameController.text,
-          address: addressController.text,
-          pin: pincodeController.text,
-          city: cityController.text,
-          state: stateController.text,
-          country: countryController.text);
+        // convert string to double
+        amount: (int.parse(amountController.text) * 100).toString(),
+        currency: selectedCurrency,
+        name: nameController.text,
+        address: addressController.text,
+        pin: pincodeController.text,
+        city: cityController.text,
+        state: stateController.text,
+        country: countryController.text,
+      );
 
-      // 2. initialize the payment sheet
+      // Ensure that all required fields from the response are not null
+      if (data == null) {
+        throw Exception("Payment initialization failed: no data received.");
+      }
+
+      final clientSecret = data['client_secret'];
+      final ephemeralKey = data['ephemeralKey'];
+      final customerId = data['id'];
+
+      if (clientSecret == null || ephemeralKey == null || customerId == null) {
+        throw Exception("Payment initialization failed due to missing data.");
+      }
+
+      // 2. Initialize the payment sheet
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
-          // Set to true for custom flow
           customFlow: false,
-          // Main params
           merchantDisplayName: 'Test Merchant',
-          paymentIntentClientSecret: data['client_secret'],
-          // Customer keys
-          customerEphemeralKeySecret: data['ephemeralKey'],
-          customerId: data['id'],
-
+          paymentIntentClientSecret: clientSecret,
+          customerEphemeralKeySecret: ephemeralKey,
+          customerId: customerId,
           style: ThemeMode.dark,
         ),
       );
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
-      rethrow;
     }
   }
 
@@ -236,6 +246,38 @@ class _HomeState extends State<Home> {
                                 formkey5.currentState!.validate() &&
                                 formkey6.currentState!.validate()) {
                               await initPaymentSheet();
+                              try {
+                                await Stripe.instance.presentPaymentSheet();
+
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(const SnackBar(
+                                  content: Text(
+                                    "Payment Done",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor: Colors.green,
+                                ));
+
+                                setState(() {
+                                  hasDonated = true;
+                                });
+                                nameController.clear();
+                                addressController.clear();
+                                cityController.clear();
+                                stateController.clear();
+                                countryController.clear();
+                                pincodeController.clear();
+                              } catch (e) {
+                                print("payment sheet failed");
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(const SnackBar(
+                                  content: Text(
+                                    "Payment Failed",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                ));
+                              }
                             }
                           },
                           child: const Text(
